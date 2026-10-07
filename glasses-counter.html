@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14202B">
+<title>عدّاد النظارات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EBEFF2; --panel:#FFFFFF; --ink:#14202B; --muted:#5B6975; --line:#D5DCE2;
+    --rx:#0F8A82; --sun:#C25E0B; --danger:#B3261E;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;font-size:16px;line-height:1.6}
+  main{max-width:720px;margin:0 auto;padding:16px 14px calc(40px + env(safe-area-inset-bottom))}
+  h1{font-size:22px;margin:4px 0 14px;font-weight:700}
+  h2{font-size:16px;margin:0 0 10px;font-weight:700}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:3px solid #1B6FEA;outline-offset:2px}
+
+  .counters{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .counter{background:var(--panel);border-radius:14px;padding:12px 14px;border-inline-start:6px solid var(--c)}
+  .counter.rx{--c:var(--rx)} .counter.sun{--c:var(--sun)}
+  .counter .n{font-size:52px;line-height:1.05;font-weight:700;font-variant-numeric:tabular-nums;color:var(--c)}
+  .counter .l{font-size:15px;color:var(--muted)}
+  .total{margin:8px 2px 14px;color:var(--muted);font-size:14px}
+  .total b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+  .stage{background:var(--panel);border-radius:14px;overflow:hidden;position:relative}
+  #view{display:block;width:100%;height:auto;touch-action:manipulation}
+  .empty{padding:28px 18px;text-align:center;border:2px dashed var(--line);border-radius:14px;margin:10px}
+  .empty p{margin:0 0 14px;color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .btn{min-height:46px;padding:0 18px;border-radius:10px;border:1.5px solid var(--ink);background:transparent;font-weight:500}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.rx{border-color:var(--rx);color:var(--rx)} .btn.sun{border-color:var(--sun);color:var(--sun)}
+  .btn.danger{border-color:var(--danger);color:var(--danger)}
+  .btn[aria-pressed="true"].rx{background:var(--rx);color:#fff}
+  .btn[aria-pressed="true"].sun{background:var(--sun);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .status{margin:10px 2px;font-size:14px;color:var(--muted);min-height:22px}
+  .status.err{color:var(--danger)}
+  .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:0 2px 8px;display:none}
+  .bar i{display:block;height:100%;width:0;background:var(--ink)}
+
+  .panel{background:var(--panel);border-radius:14px;padding:14px;margin-top:12px}
+  .selbar{display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .selbar.on{display:flex}
+  .selbar span{font-size:14px;color:var(--muted);margin-inline-end:4px}
+
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .seg label{position:relative}
+  .seg input{position:absolute;opacity:0;inset:0}
+  .seg span{display:block;text-align:center;padding:8px 4px;border:1.5px solid var(--line);border-radius:10px;font-weight:500}
+  .seg small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+  .seg input:checked + span{border-color:var(--ink);background:var(--ink);color:#fff}
+  .seg input:checked + span small{color:#cfd6dc}
+  .seg input:focus-visible + span{outline:3px solid #1B6FEA;outline-offset:2px}
+
+  .field{margin-top:14px}
+  .field label{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+  input[type=range]{width:100%;accent-color:var(--ink)}
+  .hint{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  input[type=text]{width:100%;min-height:46px;border:1.5px solid var(--line);border-radius:10px;padding:0 12px;background:#fff}
+
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .hist li:first-child{border-top:0}
+  .hist .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis}
+  .hist .dt{display:block;font-size:12px;color:var(--muted);font-weight:400}
+  .hist .v{font-variant-numeric:tabular-nums;font-weight:700}
+  .hist .v.rx{color:var(--rx)} .hist .v.sun{color:var(--sun)}
+  .hist .x{border:0;background:transparent;font-size:20px;color:var(--muted);min-width:36px;min-height:36px}
+  .sum{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:15px}
+  .sum b{font-variant-numeric:tabular-nums}
+  .tips{color:var(--muted);font-size:14px;margin:0;padding-inline-start:18px}
+</style>
+</head>
+<body>
+<main>
+  <h1>عدّاد النظارات</h1>
+
+  <section class="counters" aria-label="النتيجة الحالية">
+    <div class="counter rx"><div class="n" id="nRx">0</div><div class="l">نظارات طبية</div></div>
+    <div class="counter sun"><div class="n" id="nSun">0</div><div class="l">نظارات شمسية</div></div>
+  </section>
+  <p class="total">المجموع في هذه الصورة: <b id="nAll">0</b></p>
+
+  <section class="stage" aria-label="الصورة">
+    <canvas id="view" width="4" height="3" hidden></canvas>
+    <div class="empty" id="empty">
+      <p>صوّر الرف أو الفاترينة من الأمام، والنظارات ظاهرة كاملة وبإضاءة جيدة.</p>
+      <div class="row">
+        <button class="btn primary" id="btnCam" type="button">التقط صورة</button>
+        <button class="btn" id="btnGal" type="button">اختر من المعرض</button>
+      </div>
+    </div>
+  </section>
+  <input type="file" id="cam" accept="image/*" capture="environment" hidden>
+  <input type="file" id="gal" accept="image/*" hidden>
+
+  <div class="bar" id="bar"><i id="barI"></i></div>
+  <p class="status" id="status" role="status"></p>
+
+  <div class="selbar" id="selbar">
+    <span id="selTxt">النظارة المحددة:</span>
+    <button class="btn rx" type="button" data-set="rx">طبية</button>
+    <button class="btn sun" type="button" data-set="sun">شمسية</button>
+    <button class="btn danger" type="button" data-set="del">حذف</button>
+  </div>
+
+  <section class="panel" id="tools" hidden>
+    <h2>دقة المسح</h2>
+    <div class="seg" role="radiogroup" aria-label="دقة المسح">
+      <label><input type="radio" name="grid" value="1"><span>سريع<small>صورة كاملة</small></span></label>
+      <label><input type="radio" name="grid" value="2" checked><span>متوسط<small>4 أجزاء</small></span></label>
+      <label><input type="radio" name="grid" value="3"><span>دقيق<small>9 أجزاء</small></span></label>
+    </div>
+
+    <div class="field">
+      <label for="sens">الحساسية</label>
+      <input type="range" id="sens" min="0" max="100" value="82">
+      <div class="hint"><span>نتائج أقل وأوثق</span><span>نتائج أكثر</span></div>
+    </div>
+
+    <div class="field">
+      <label>تصحيح يدوي: المس نظارة لتغيير نوعها أو حذفها، أو أضف نظارة فاتتها</label>
+      <div class="row" style="justify-content:flex-start">
+        <button class="btn rx" type="button" id="addRx" aria-pressed="false">+ طبية</button>
+        <button class="btn sun" type="button" id="addSun" aria-pressed="false">+ شمسية</button>
+        <button class="btn" type="button" id="rescan">أعد المسح</button>
+        <button class="btn" type="button" id="newImg">صورة أخرى</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="savePanel" hidden>
+    <h2>احفظ العدّ</h2>
+    <input type="text" id="name" placeholder="اسم الرف أو الفاترينة، مثل: فاترينة 2" maxlength="40" autocomplete="off">
+    <div class="row" style="margin-top:10px;justify-content:flex-start">
+      <button class="btn primary" type="button" id="save">احفظ العدّ</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>الجرد المحفوظ</h2>
+    <div class="sum">
+      <span>طبية: <b id="tRx">0</b></span>
+      <span>شمسية: <b id="tSun">0</b></span>
+      <span>الإجمالي: <b id="tAll">0</b></span>
+    </div>
+    <ul class="hist" id="hist"></ul>
+    <p class="status" id="emptyHist" style="margin:0">لا يوجد جرد محفوظ بعد.</p>
+    <div class="row" style="margin-top:10px;justify-content:flex-start">
+      <button class="btn" type="button" id="csv">تصدير CSV</button>
+      <button class="btn danger" type="button" id="clearAll">مسح السجل</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>لنتيجة أدق</h2>
+    <ul class="tips">
+      <li>صوّر كل رف أو فاترينة على حدة، ولا تصوّر المحل كله مرة واحدة.</li>
+      <li>تجنّب انعكاس الإضاءة على الزجاج، وخلّي النظارات غير متراكبة.</li>
+      <li>راجع الصورة بعد المسح، فالتصحيح اليدوي يضمن الرقم النهائي.</li>
+    </ul>
+  </section>
+</main>
+
+<script type="module">
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+
+const $ = s => document.querySelector(s);
+const view = $('#view'), vctx = view.getContext('2d');
+const base = document.createElement('canvas'), bctx = base.getContext('2d');
+const COL = { rx: '#0F8A82', sun: '#C25E0B' };
+const NAME = { rx: 'طبية', sun: 'شمسية' };
+const MAX_SIDE = 2400;
+const MODEL = 'Xenova/owlvit-base-patch32';
+const LABELS = ['a photo of a pair of eyeglasses', 'a photo of a pair of sunglasses'];
+const OPTS = { threshold: 0.05, top_k: 200, percentage: false };
+
+const S = { has: false, dets: [], th: 0.12, sel: null, add: null, busy: false, grid: 2 };
+
+/* ---------- UI helpers ---------- */
+function status(t, err = false) {
+  const el = $('#status'); el.textContent = t || ''; el.classList.toggle('err', err);
+}
+function progress(p) {
+  const bar = $('#bar');
+  if (p == null) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block'; $('#barI').style.width = Math.round(p) + '%';
+}
+const vis = d => !d.deleted && (d.manual || d.score >= S.th);
+
+function counts() {
+  let rx = 0, sun = 0;
+  for (const d of S.dets) if (vis(d)) (d.label === 'sun' ? sun++ : rx++);
+  return { rx, sun };
+}
+
+function render() {
+  const { rx, sun } = counts();
+  $('#nRx').textContent = rx; $('#nSun').textContent = sun; $('#nAll').textContent = rx + sun;
+  $('#view').hidden = !S.has;
+  $('#empty').hidden = S.has;
+  $('#tools').hidden = !S.has;
+  $('#savePanel').hidden = !S.has;
+  const sb = $('#selbar');
+  sb.classList.toggle('on', !!S.sel && vis(S.sel));
+  if (S.sel) $('#selTxt').textContent = 'النظارة المحددة (' + NAME[S.sel.label] + '):';
+  $('#addRx').setAttribute('aria-pressed', S.add === 'rx');
+  $('#addSun').setAttribute('aria-pressed', S.add === 'sun');
+  $('#rescan').disabled = S.busy; $('#save').disabled = S.busy;
+  draw();
+}
+
+function draw() {
+  vctx.clearRect(0, 0, view.width, view.height);
+  if (!S.has) return;
+  vctx.drawImage(base, 0, 0);
+  const lw = Math.max(3, view.width / 320);
+  for (const d of S.dets) {
+    if (!vis(d)) continue;
+    const w = d.x2 - d.x1, h = d.y2 - d.y1, c = COL[d.label];
+    vctx.fillStyle = c + '38'; vctx.fillRect(d.x1, d.y1, w, h);
+    if (d === S.sel) { vctx.lineWidth = lw * 2.4; vctx.strokeStyle = '#fff'; vctx.strokeRect(d.x1, d.y1, w, h); }
+    vctx.lineWidth = lw; vctx.strokeStyle = c; vctx.strokeRect(d.x1, d.y1, w, h);
+  }
+}
+
+/* ---------- model ---------- */
+let detectorPromise = null;
+const fileProg = {};
+function onProgress(e) {
+  if (e.status !== 'progress' || !e.file) return;
+  fileProg[e.file] = e.progress;
+  const v = Object.values(fileProg);
+  const avg = v.reduce((a, b) => a + b, 0) / v.length;
+  status('تحميل النموذج لأول مرة فقط… ' + Math.round(avg) + '%');
+  progress(avg);
+}
+const load = device => pipeline('zero-shot-object-detection', MODEL, { device, progress_callback: onProgress });
+const loadWasm = async () => ({ d: await load('wasm'), dev: 'wasm' });
+function getDetector() {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      if (navigator.gpu) { try { return { d: await load('webgpu'), dev: 'webgpu' }; } catch (e) { console.warn('webgpu failed', e); } }
+      return loadWasm();
+    })();
+  }
+  return detectorPromise;
+}
+async function runDetector(url) {
+  let h = await getDetector();
+  try { return await h.d(url, LABELS, OPTS); }
+  catch (e) {
+    if (h.dev !== 'webgpu') throw e;
+    detectorPromise = loadWasm(); h = await detectorPromise;
+    return h.d(url, LABELS, OPTS);
+  }
+}
+
+/* ---------- scanning ---------- */
+function makeTiles(W, H, n) {
+  const tiles = [{ x: 0, y: 0, w: W, h: H, full: true }];
+  if (n === 1) return tiles;
+  const ov = 0.2, tw = W / (n - (n - 1) * ov), th = H / (n - (n - 1) * ov);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+    tiles.push({ x: c * tw * (1 - ov), y: r * th * (1 - ov), w: tw, h: th, full: false });
+  return tiles;
+}
+
+async function detectTile(t, W, H) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(t.w); cv.height = Math.round(t.h);
+  cv.getContext('2d').drawImage(base, t.x, t.y, t.w, t.h, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92));
+  const url = URL.createObjectURL(blob);
+  let res;
+  try { res = await runDetector(url); } finally { URL.revokeObjectURL(url); }
+  const tol = Math.max(4, cv.width * 0.01), out = [];
+  for (const r of res) {
+    const b = r.box;
+    if (!t.full) {
+      const cutL = b.xmin < tol && t.x > 1, cutT = b.ymin < tol && t.y > 1;
+      const cutR = b.xmax > cv.width - tol && t.x + t.w < W - 1;
+      const cutB = b.ymax > cv.height - tol && t.y + t.h < H - 1;
+      if (cutL || cutT || cutR || cutB) continue;
+    }
+    const d = {
+      x1: Math.max(0, b.xmin + t.x), y1: Math.max(0, b.ymin + t.y),
+      x2: Math.min(W, b.xmax + t.x), y2: Math.min(H, b.ymax + t.y),
+      score: r.score, label: r.label.includes('sunglasses') ? 'sun' : 'rx'
+    };
+    if (d.x2 - d.x1 < 20 || d.y2 - d.y1 < 10) continue;
+    out.push(d);
+  }
+  return out;
+}
+
+const area = d => (d.x2 - d.x1) * (d.y2 - d.y1);
+function nms(list) {
+  list.sort((a, b) => b.score - a.score);
+  const keep = [];
+  for (const d of list) {
+    let drop = false;
+    for (const k of keep) {
+      const ix = Math.max(0, Math.min(d.x2, k.x2) - Math.max(d.x1, k.x1));
+      const iy = Math.max(0, Math.min(d.y2, k.y2) - Math.max(d.y1, k.y1));
+      const inter = ix * iy, ad = area(d), ak = area(k);
+      const iou = inter / (ad + ak - inter);
+      if (iou > 0.45 || inter / Math.min(ad, ak) > 0.85) { drop = true; break; }
+    }
+    if (!drop) keep.push(d);
+  }
+  return keep;
+}
+
+async function scan() {
+  if (!S.has || S.busy) return;
+  S.busy = true; S.dets = []; S.sel = null; S.add = null; render();
+  try {
+    status('جارٍ تجهيز النموذج…');
+    await getDetector();
+    progress(null);
+    const W = base.width, H = base.height;
+    const tiles = makeTiles(W, H, S.grid);
+    let all = [];
+    for (let i = 0; i < tiles.length; i++) {
+      status('جارٍ المسح: ' + (i + 1) + ' من ' + tiles.length);
+      progress(((i) / tiles.length) * 100);
+      await new Promise(r => setTimeout(r, 30));
+      all = all.concat(await detectTile(tiles[i], W, H));
+    }
+    S.dets = nms(all);
+    const { rx, sun } = counts();
+    status('تم المسح. راجع الصورة وصحّح ما يلزم. (' + (rx + sun) + ' نظارة)');
+  } catch (e) {
+    console.error(e);
+    status('تعذّر التحليل: ' + (e.message || e) + '. تأكد من الاتصال بالإنترنت عند أول تشغيل.', true);
+  }
+  progress(null);
+  S.busy = false; render();
+}
+
+/* ---------- image input ---------- */
+async function loadFile(file) {
+  if (!file) return;
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch { bmp = await createImageBitmap(file); }
+  const sc = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+  base.width = Math.round(bmp.width * sc); base.height = Math.round(bmp.height * sc);
+  bctx.drawImage(bmp, 0, 0, base.width, base.height);
+  view.width = base.width; view.height = base.height;
+  S.has = true; S.dets = []; S.sel = null; S.add = null;
+  render();
+  scan();
+}
+$('#btnCam').onclick = () => $('#cam').click();
+$('#btnGal').onclick = () => $('#gal').click();
+$('#newImg').onclick = () => $('#gal').click();
+for (const id of ['#cam', '#gal']) $(id).onchange = e => { loadFile(e.target.files[0]); e.target.value = ''; };
+
+/* ---------- manual correction ---------- */
+function toCanvas(e) {
+  const r = view.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * view.width / r.width, y: (e.clientY - r.top) * view.height / r.height };
+}
+view.addEventListener('click', e => {
+  if (S.busy) return;
+  const p = toCanvas(e);
+  if (S.add) {
+    const v = S.dets.filter(vis);
+    const med = a => a.sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    const w = v.length ? med(v.map(d => d.x2 - d.x1)) : view.width * 0.08;
+    const h = v.length ? med(v.map(d => d.y2 - d.y1)) : view.height * 0.05;
+    const d = { x1: p.x - w / 2, y1: p.y - h / 2, x2: p.x + w / 2, y2: p.y + h / 2, score: 1, label: S.add, manual: true };
+    S.dets.push(d); S.sel = d;
+  } else {
+    let best = null;
+    for (const d of S.dets) {
+      if (!vis(d)) continue;
+      if (p.x >= d.x1 && p.x <= d.x2 && p.y >= d.y1 && p.y <= d.y2 && (!best || area(d) < area(best))) best = d;
+    }
+    S.sel = best;
+  }
+  render();
+});
+$('#selbar').addEventListener('click', e => {
+  const k = e.target.dataset.set; if (!k || !S.sel) return;
+  if (k === 'del') { S.sel.deleted = true; S.sel = null; }
+  else { S.sel.label = k; S.sel.manual = true; }
+  render();
+});
+$('#addRx').onclick = () => { S.add = S.add === 'rx' ? null : 'rx'; render(); };
+$('#addSun').onclick = () => { S.add = S.add === 'sun' ? null : 'sun'; render(); };
+$('#rescan').onclick = scan;
+document.querySelectorAll('input[name=grid]').forEach(r => r.onchange = () => { S.grid = +r.value; });
+$('#sens').oninput = e => { S.th = 0.45 - (+e.target.value) * 0.004; S.sel = null; render(); };
+
+/* ---------- saved sessions ---------- */
+const KEY = 'glasses-counter-sessions';
+let sessions = [];
+try { sessions = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch {}
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(sessions)); } catch {} };
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = t => new Date(t).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+
+function renderHist() {
+  const ul = $('#hist'); ul.innerHTML = '';
+  let tr = 0, ts = 0;
+  for (const s of sessions) {
+    tr += s.rx; ts += s.sun;
+    const li = document.createElement('li');
+    li.innerHTML = '<div class="nm">' + esc(s.name) + '<span class="dt">' + fmt(s.t) + '</span></div>' +
+      '<span class="v rx" title="طبية">' + s.rx + '</span><span class="v sun" title="شمسية">' + s.sun + '</span>' +
+      '<button class="x" type="button" aria-label="حذف ' + esc(s.name) + '">×</button>';
+    li.querySelector('.x').onclick = () => { sessions = sessions.filter(x => x.id !== s.id); persist(); renderHist(); };
+    ul.appendChild(li);
+  }
+  $('#tRx').textContent = tr; $('#tSun').textContent = ts; $('#tAll').textContent = tr + ts;
+  $('#emptyHist').hidden = sessions.length > 0;
+}
+$('#save').onclick = () => {
+  const { rx, sun } = counts();
+  const name = $('#name').value.trim() || ('عدّ ' + (sessions.length + 1));
+  sessions.unshift({ id: Date.now(), t: Date.now(), name, rx, sun });
+  persist(); renderHist();
+  $('#name').value = '';
+  S.has = false; S.dets = []; S.sel = null; S.add = null;
+  status('تم حفظ «' + name + '». صوّر الرف التالي.');
+  render();
+};
+$('#csv').onclick = () => {
+  if (!sessions.length) return;
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [['الاسم', 'التاريخ', 'طبية', 'شمسية', 'المجموع'].map(q).join(',')];
+  for (const s of sessions) rows.push([q(s.name), q(fmt(s.t)), s.rx, s.sun, s.rx + s.sun].join(','));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'glasses-count-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$('#clearAll').onclick = () => {
+  if (sessions.length && confirm('مسح كل الجرد المحفوظ؟ لا يمكن التراجع.')) { sessions = []; persist(); renderHist(); }
+};
+
+renderHist(); render();
+</script>
+</body>
+</html>
